@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+
+<title>DQL-Developer</title>
+
+<link type="text/css" rel="stylesheet" href="./bootstrap.min.css" />
+<link type="text/css" rel="stylesheet" href="./bootstrap-vue.css" />
+
+<script src="./vue.js"></script>
+<script src="./bootstrap-vue.js"></script>
+</head>
+<body>
+	<div id="app">
+		<b-table 
+			striped small hover show-empty show-clear-button input-size="sm" :items="items" caption-top
+			:fields="fields" >
+			
+			<template v-slot:row-details='row'>
+					<b-container>
+						<b><span @click='testMethod()'>Stuff</span></b>
+					</b-container>
+			</template>
+		</b-table>
+		
+	</div>
+
+	<script>
+		window.app = new Vue({
+		  el: '#app',
+		  data: {
+			name: 'world',
+			fields: ['a','b','c'],
+		    items: [
+		    	{a: 1, b: 'two', c: 'Stuff', _showDetails: true},
+		    	{a: 'one', b: 2, c: 'second row' },
+		    	{a: '1one1', b: '2two2', c:' last row with details', _showDetails: true }
+		    ]
+		  },
+		  computed: {
+		    showAlert() {
+		      return this.name.length > 4 ? true : false
+		    }
+		  },
+		  methods: {
+			  testMethod() {
+				  alert('clicked')
+			  }
+		  }
+		})
+	</script>
+</body>
+</html>
