@@ -2,43 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+<meta name="viewport"
+	content="width=device-width, initial-scale=1, shrink-to-fit=no"
+/>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-
 <title>DQL-Developer</title>
-
-<link type="text/css" rel="stylesheet" href="./bootstrap.min.css" />
-<link type="text/css" rel="stylesheet" href="./bootstrap-vue.css" />
-
-<script src="./vue.js"></script>
-<script src="./bootstrap-vue.js"></script>
+<link type="text/css" rel="stylesheet" href="./assets/bootstrap.min.css" />
+<link type="text/css" rel="stylesheet" href="./assets/bootstrap-vue.css" />
+<script src="./js/vue.js"></script>
+<script src="./js/bootstrap-vue.js"></script>
+<script src='./js/tableMetaData.js'></script>
 </head>
 <body>
 	<div id="app">
-		<b-table 
-			striped small hover show-empty show-clear-button input-size="sm" :items="items" caption-top
-			:fields="fields" >
+		<b-row id='topbar'>
+			<div>Stuff</div>
+		</b-row>
+		<b-row id='main'>
+			<b-col cols='2' id='config'  >
+				<b-form-group label='Region' label-for='input-horizontal' label-cols-sm='4' >
+					<b-form-select :disabled='!config.isEditable' @change='editConfig(true)'  v-model='config.region' :options='regions' />
+				</b-form-group>
+				<b-form-group label='DynamoDB Endpoint' label-for='input-horizontal' label-cols-sm='4' >
+					<b-form-input :disabled='!config.isEditable' @change='editConfig(true)' v-model='config.endpoint' />
+				</b-form-group>
+				<b-button variant='primary' @click='editConfig()' class='content-fill'>Edit Configuration</b-button>
+				<hr />
+				<div><span>Tables</span></div>
+				<div v-for='table in tables' v-bind:key='table.id' class='content-fill'>
+					<b-button v-b-toggle="'collapse-' + table.id" class='content-fill'>{{ table.name }}</b-button>
+					<b-collapse :id="'collapse-' + table.id" >
+						<b-card @dblclick='retrieveAll(table.name)'>
+							<div>{{ table.description }}</div>
+							<div><span>PK:</span><span>{{ table.primaryKey.attributeName }}</span></div>
+							<div v-for='field in table.fields' v-if='field != table.primaryKey.attributeName' class='content-fill'>
+								<span></span><span >{{ field }}</span>
+							</div>
+					</b-collapse>
+				</div>
+				
+			</b-col>
+			<b-col cols='8' id='view' >
+				<div class='overflow-auto'>
+					<b-table striped small hover show-empty caption-top :fields="columns" :items="items" primary-key="id" />
+				</div>
+			</b-col>
 			
-			<template v-slot:row-details='row'>
-					<b-container>
-						<b><span @click='testMethod()'>Stuff</span></b>
-					</b-container>
-			</template>
-		</b-table>
-		
+		</b-row>
 	</div>
-
 	<script>
 		window.app = new Vue({
 		  el: '#app',
 		  data: {
-			name: 'world',
-			fields: ['a','b','c'],
-		    items: [
-		    	{a: 1, b: 'two', c: 'Stuff', _showDetails: true},
-		    	{a: 'one', b: 2, c: 'second row' },
-		    	{a: '1one1', b: '2two2', c:' last row with details', _showDetails: true }
-		    ]
+			  config: { region: '', isEditable: false },
+			  tableMetaData: metaData || {},
+			  tables: [],
+			  regions: ["us-east-1","ap-northeast-1","eu-west-1","us-gov-east-1","us-west-2","ap-southeast-2","eu-central-1","eu-west-3","ap-southeast-1","eu-west-2","us-west-1","ap-south-1","sa-east-1","ap-northeast-2","ap-northeast-3","me-south-1","eu-north-1","ca-central-1","us-gov-west-1","us-east-2","cn-northwest-1","GLOBAL","cn-north-1"],
+			  items: [],
+			  columns: []
 		  },
 		  computed: {
 		    showAlert() {
@@ -47,10 +68,85 @@
 		  },
 		  methods: {
 			  testMethod() {
-				  alert('clicked')
+				  alert('test')
+			  },
+			  retrieveAll(table) {
+				  var self = this;
+				  fetch('http://localhost:8080/resources/selectAll/' + table, { method: 'GET' })
+				  	.then((response) => {
+				  		console.log(response);
+				  		response.json().then((data) => {
+				  			console.log('data', data);
+				  			self.items = data;
+				  			var columns = {};
+					  		self.items.map((item, i) => {
+					  			Object.keys(item).map((key) => {
+					  				columns[key] = {
+					  					key: key,
+					  					sortable: true
+					  				};
+					  			})
+					  			
+					  		})
+					  		self.columns = Object.values(columns);
+					  		console.log('selectAll', self);
+				  		});
+				  	})
+			  },
+			  editConfig(isNetworkUpdate) {
+				  if (isNetworkUpdate) {
+					  var self = this;
+					  var newConfig = JSON.parse(JSON.stringify(self.config));
+					  delete newConfig.isEditable
+					  
+					  fetch('localhost:8080/resources/config', {
+						  method: 'POST',
+						  body: JSON.stringify(newConfig)
+					  }).then((response) => {
+						  console.log(response);
+					  }).finally(() => {
+						  self.config.endpoint = `https://dynamodb.${newConfig.region}.amazonaws.com`;
+					  })
+				  }
+					
+				  var config = this.config;
+				  config.isEditable = !this.config.isEditable;
 			  }
+		  },
+		  mounted() {
+			  var self = this;
+			  /* var tableData = [];
+			  Object.keys(self.tableMetaData).map((key, i) => {
+	  				var table = self.tableMetaData[key];
+	  				table.id = i;
+	  				table.items = table.items || [];
+	  				tableData.push(table);
+	  			});
+			  self.tables = tableData;
+			  console.log(self.tables) */
+			  
+			   fetch('http://localhost:8080/resources/init', { method: 'GET' })
+			  	.then((response) => {
+			  		response.json().then((data) => {
+		 	  			console.log(data);
+			  			tableMetaData = data;
+			  			var tableData = [];
+			  			Object.keys(data).map((key, i) => {
+			  				var table = tableMetaData[key];
+			  				table.id = i;
+			  				tableData.push(table);
+			  			});
+			  			self.tableMetaData = tableMetaData;
+			  			self.tables = tableData;
+			  		});
+			  	}) 
 		  }
 		})
 	</script>
+	<style>
+		.content-fill {
+			width: 100%;
+		}
+	</style>
 </body>
 </html>
